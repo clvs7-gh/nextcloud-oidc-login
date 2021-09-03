@@ -1,11 +1,11 @@
 <?xml version="1.0"?>
 <info xmlns:xsi= "http://www.w3.org/2001/XMLSchema-instance"
       xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
-    <id>oidc_login</id>
+    <id>oidc_login_aad_forked</id>
     <name>OpenID Connect Login</name>
     <summary>Login with single OpenID Connect provider</summary>
 <description><![CDATA[
-# OpenID Connect Login
+# OpenID Connect Login (Forked)
 
 Make possible create users and login via one single OpenID Connect provider. Even though a fork of [nextcloud-social-login](https://github.com/zorn-v/nextcloud-social-login), it fundamentally differs in two ways - aims for simplistic, single provider login (and hence is very minimalastic), and it supports having LDAP as the primary user backend. This way, you can use OpenID Connect to login to Nextcloud while maintaining an LDAP backend with attributes with the LDAP plugin. Supports automatic discovery of endpoints through the OpenID Connect spec, with a single provider configuration attribute.
 ]]></description>
@@ -15,9 +15,9 @@ Make possible create users and login via one single OpenID Connect provider. Eve
     <namespace>OIDCLogin</namespace>
     <category>integration</category>
     <category>social</category>
-    <website>https://github.com/pulsejet/nextcloud-single-openid-connect</website>
-    <bugs>https://github.com/pulsejet/nextcloud-single-openid-connect/issues</bugs>
-    <repository>https://github.com/pulsejet/nextcloud-single-openid-connect</repository>
+    <website>https://github.com/clvs7-gh/nextcloud-single-openid-connect</website>
+    <bugs>https://github.com/clvs7-gh/nextcloud-single-openid-connect/issues</bugs>
+    <repository>https://github.com/clvs7-gh/nextcloud-single-openid-connect</repository>
     <screenshot>https://raw.githubusercontent.com/pulsejet/nextcloud-single-openid-connect/master/appinfo/screenshot.png</screenshot>
     <dependencies>
         <nextcloud min-version="20" max-version="22" />
