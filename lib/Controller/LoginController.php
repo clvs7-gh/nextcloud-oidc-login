@@ -35,6 +35,8 @@ class LoginController extends Controller
     private $l;
     /** @var \OCA\Files_External\Service\GlobalStoragesService */
     private $storagesService;
+    /** @var array */
+    private $azureAdGroupsInfo = [];
 
 
     public function __construct(
@@ -93,6 +95,28 @@ class LoginController extends Controller
             if ($this->config->getSystemValue('oidc_login_use_id_token', false)) {
                 // Get user information from ID Token
                 $user = $oidc->getIdTokenPayload();
+
+                // Get Azure AD group info
+                if ($this->config->getSystemValue('oidc_login_aad_resolve_group_ids', false)) {
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer {$oidc->getAccessToken()}", 'Accept: application/json']);
+                    curl_setopt($ch, CURLOPT_URL, 'https://graph.microsoft.com/v1.0/groups');
+                    $apiResult = curl_exec($ch);
+                    curl_close($ch);
+
+                    if (!$apiResult) {
+                        throw new \UnexpectedValueException ('Curl error.');
+                    }
+                    $decodedJson = json_decode($apiResult, true);
+                    if (!$decodedJson) {
+                        throw new \UnexpectedValueException ('Invalid JSON.');
+                    }
+
+                    foreach ($decodedJson['value'] as $item) {
+                        $this->azureAdGroupsInfo[$item['id']] = $item;
+                    }
+                }
             } else {
                 // Get user information from OIDC
                 $user = $oidc->requestUserInfo();
@@ -341,6 +365,19 @@ class LoginController extends Controller
                 // Make sure group names is an array
                 if (!is_array($profileGroups)) {
                     throw new LoginException($attr['groups'] . ' must be an array');
+                }
+
+                // Resolve Azure AD Group IDs
+                if ($this->config->getSystemValue('oidc_login_aad_resolve_group_ids', false)) {
+                    $newProfileGroups = [];
+                    foreach ($profileGroups as $groupId) {
+                        if (array_key_exists($groupId, $this->azureAdGroupsInfo)) {
+                            array_push($newProfileGroups, $this->azureAdGroupsInfo[$groupId]['displayName']);
+                        } else if (!$this->config->getSystemValue('oidc_login_aad_ignore_unresolved_groups', false)) {
+                            array_push($newProfileGroups, $groupId);
+                        }
+                    }
+                    $profileGroups = $newProfileGroups;
                 }
 
                 // Add to all groups
