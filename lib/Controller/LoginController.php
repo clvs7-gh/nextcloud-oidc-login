@@ -235,6 +235,66 @@ class LoginController extends Controller
             $uid = md5($uid);
         }
 
+        // Groups to add user in
+        $groupNames = [];
+
+        // Add administrator group from attribute
+        $manageAdmin = array_key_exists('is_admin', $attr) && $attr['is_admin'];
+        if ($manageAdmin) {
+            $adminAttr = $attr['is_admin'];
+            if (array_key_exists($adminAttr, $profile) && $profile[$adminAttr]) {
+                array_push($groupNames, 'admin');
+            }
+        }
+
+        // Add default group if present
+        if ($defaultGroup = $this->config->getSystemValue('oidc_login_default_group')) {
+            array_push($groupNames, $defaultGroup);
+        }
+
+        // Add user's groups from profile
+        $hasProfileGroups = array_key_exists($attr['groups'], $profile);
+        if ($hasProfileGroups) {
+            // Get group names
+            $profileGroups = $profile[$attr['groups']];
+
+            // Explode by space if string
+            if (is_string($profileGroups)) {
+                $profileGroups = array_filter(explode(' ', $profileGroups));
+            }
+
+            // Make sure group names is an array
+            if (!is_array($profileGroups)) {
+                throw new LoginException($attr['groups'] . ' must be an array');
+            }
+
+            // Resolve Azure AD Group IDs
+            if ($this->config->getSystemValue('oidc_login_aad_resolve_group_ids', false)) {
+                $newProfileGroups = [];
+                foreach ($profileGroups as $groupId) {
+                    if (array_key_exists($groupId, $this->azureAdGroupsInfo)) {
+                        array_push($newProfileGroups, $this->azureAdGroupsInfo[$groupId]['displayName']);
+                    } else if (!$this->config->getSystemValue('oidc_login_aad_ignore_unresolved_groups', false)) {
+                        array_push($newProfileGroups, $groupId);
+                    }
+                }
+                $profileGroups = $newProfileGroups;
+            }
+
+            // Add to all groups
+            $groupNames = array_merge($groupNames, $profileGroups);
+        }
+
+        // Remove duplicate groups
+        $groupNames = array_unique($groupNames);
+
+        // Check if authorization is enabled and fail in case user is not in authorized group
+        if ($authorizedGroup = $this->config->getSystemValue('oidc_login_authorized_group')) {
+            if (isset($authorizedGroup) && !empty($authorizedGroup) && !in_array($authorizedGroup, $groupNames)) {
+                throw new LoginException($this->l->t('Access to this application is not allowed'));
+            }
+        }
+
         // Get user with fallback
         $user = $this->userManager->get($uid);
         $userPassword = '';
@@ -333,59 +393,6 @@ class LoginController extends Controller
                     $user->setQuota((string) $defaultQuota);
                 };
             }
-
-            // Groups to add user in
-            $groupNames = [];
-
-            // Add administrator group from attribute
-            $manageAdmin = array_key_exists('is_admin', $attr) && $attr['is_admin'];
-            if ($manageAdmin) {
-                $adminAttr = $attr['is_admin'];
-                if (array_key_exists($adminAttr, $profile) && $profile[$adminAttr]) {
-                    array_push($groupNames, 'admin');
-                }
-            }
-
-            // Add default group if present
-            if ($defaultGroup = $this->config->getSystemValue('oidc_login_default_group')) {
-                array_push($groupNames, $defaultGroup);
-            }
-
-            // Add user's groups from profile
-            $hasProfileGroups = array_key_exists($attr['groups'], $profile);
-            if ($hasProfileGroups) {
-                // Get group names
-                $profileGroups = $profile[$attr['groups']];
-
-                // Explode by space if string
-                if (is_string($profileGroups)) {
-                    $profileGroups = array_filter(explode(' ', $profileGroups));
-                }
-
-                // Make sure group names is an array
-                if (!is_array($profileGroups)) {
-                    throw new LoginException($attr['groups'] . ' must be an array');
-                }
-
-                // Resolve Azure AD Group IDs
-                if ($this->config->getSystemValue('oidc_login_aad_resolve_group_ids', false)) {
-                    $newProfileGroups = [];
-                    foreach ($profileGroups as $groupId) {
-                        if (array_key_exists($groupId, $this->azureAdGroupsInfo)) {
-                            array_push($newProfileGroups, $this->azureAdGroupsInfo[$groupId]['displayName']);
-                        } else if (!$this->config->getSystemValue('oidc_login_aad_ignore_unresolved_groups', false)) {
-                            array_push($newProfileGroups, $groupId);
-                        }
-                    }
-                    $profileGroups = $newProfileGroups;
-                }
-
-                // Add to all groups
-                $groupNames = array_merge($groupNames, $profileGroups);
-            }
-
-            // Remove duplicate groups
-            $groupNames = array_unique($groupNames);
 
             // Remove user from groups not present
             $currentUserGroups = $this->groupManager->getUserGroups($user);

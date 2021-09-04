@@ -104,6 +104,12 @@ $CONFIG = array (
     
     // Ignore unresolved Azure AD groups 
     'oidc_login_aad_ignore_unresolved_groups' => false,
+    
+    // Authorize only the configured group to access Nextcloud. In case the user
+    // is not assigned to this group (read from oidc_login_attributes) the login
+    // will not be allowed for this user. When the user is not authorized, the user
+    // will neither be created nor its data updated.
+    'oidc_login_authorized_group' => 'admin',
 
     // Use external storage instead of a symlink to the home directory
     // Requires the files_external app to be enabled
